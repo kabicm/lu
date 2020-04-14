@@ -199,26 +199,24 @@ int main(int argc, char ** argv)
             timings.push_back(time);
         }
 
+        //******************************
+        // OUTPUT TIMINGS
+        //******************************
         if (rank == 0) {
-            //******************************
-            // OUTPUT TIMINGS
-            //******************************
-            if (rank == 0) {
-                std::cout << "==========================" << std::endl;
-                std::cout << "    PROBLEM PARAMETERS:" << std::endl;
-                std::cout << "==========================" << std::endl;
-                std::cout << "Matrix size: " << N << std::endl;
-                std::cout << "Block size: " << nb << std::endl;
-                std::cout << "Processor grid: " << prows << " x " << pcols << std::endl;
-                std::cout << "Number of repetitions: " << n_rep << std::endl;
-                std::cout << "--------------------------" << std::endl;
-                std::cout << "TIMINGS [ms] = ";
-                for (auto &time : timings) {
-                    std::cout << time << " ";
-                }
-                std::cout << std::endl;
-                std::cout << "==========================" << std::endl;
+            std::cout << "==========================" << std::endl;
+            std::cout << "    PROBLEM PARAMETERS:" << std::endl;
+            std::cout << "==========================" << std::endl;
+            std::cout << "Matrix size: " << N << std::endl;
+            std::cout << "Block size: " << nb << std::endl;
+            std::cout << "Processor grid: " << prows << " x " << pcols << std::endl;
+            std::cout << "Number of repetitions: " << n_rep << std::endl;
+            std::cout << "--------------------------" << std::endl;
+            std::cout << "TIMINGS [ms] = ";
+            for (auto &time : timings) {
+                std::cout << time << " ";
             }
+            std::cout << std::endl;
+            std::cout << "==========================" << std::endl;
         }
 
         //******************************
