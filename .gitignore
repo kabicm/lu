@@ -31,7 +31,11 @@
 *.out
 *.app
 
+# vscode folder
+.vscode
+
 .DS_Store*
 *.swp
 
 build
+
