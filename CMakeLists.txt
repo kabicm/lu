@@ -17,12 +17,15 @@ set(SCALAPACK_TARGET "mkl::scalapack_${MPI_TYPE}_intel_32bit_omp_dyn")
 add_subdirectory(libs/costa)
 add_subdirectory(libs/cxxopts)
 
-add_executable(lu "lu.cpp")
-target_compile_features(lu PUBLIC cxx_std_11)
-target_link_libraries(lu PUBLIC MPI::MPI_CXX
-                         PRIVATE ${BLAS_TARGET}
-                                 ${SCALAPACK_TARGET}
-                                 costa
-                                 cxxopts
-                     )
-target_include_directories(lu PUBLIC "${lu_SOURCE_DIR}/libs/cxxopts/include/")
+set(executables "lu" "cholesky")
+foreach(exec ${executables})
+    add_executable(${exec} "${exec}.cpp")
+    target_compile_features(${exec} PUBLIC cxx_std_17)
+    target_link_libraries(${exec} PUBLIC MPI::MPI_CXX
+                             PRIVATE ${BLAS_TARGET}
+                                     ${SCALAPACK_TARGET}
+                                     costa
+                                     cxxopts
+                         )
+    target_include_directories(${exec} PUBLIC "${lu_SOURCE_DIR}/libs/cxxopts/include/")
+endforeach()
