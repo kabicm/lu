@@ -86,7 +86,7 @@ int main(int argc, char ** argv)
     auto result = options.parse(argc, const_argv);
     if (result.count("help")) {
         std::cout << options.help() << std::endl;
-        return 0;
+        return -1;
     }
 
     MPI_Init(&argc, &argv);
@@ -162,7 +162,7 @@ int main(int argc, char ** argv)
 
             MPI_Comm_free(&comm);
             MPI_Finalize();
-            return 0;
+            return -1;
         }
 
         //******************************
@@ -240,7 +240,7 @@ int main(int argc, char ** argv)
 
                 MPI_Comm_free(&comm);
                 MPI_Finalize();
-                return 0;
+                return -1;
             }
 
             timings.push_back(time);
