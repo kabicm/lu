@@ -40,7 +40,7 @@ int main(int argc, char ** argv)
             cxxopts::value<int>()->default_value("2"))
         ("p,p_grid",
             "processor 2D-decomposition.",
-             cxxopts::value<std::vector<int>>()->default_value("1,1"))
+             cxxopts::value<std::vector<int>>()->default_value("-1,-1"))
         ("r,n_rep",
             "number of repetitions.",
             cxxopts::value<int>()->default_value("2"))

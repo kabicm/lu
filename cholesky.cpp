@@ -17,6 +17,12 @@
 
 #include "utils.hpp"
 
+// costa
+#include <costa/layout.hpp>
+
+// cxxopts
+#include <cxxopts.hpp>
+
 /**
  * @brief parses the number of processors into a square grid
  * @param P the number of ranks that are available
@@ -39,6 +45,7 @@ std::pair<int, int> getProcessorGrid(int P)
  * 
  * @returns true if the program was called correctly
  */
+/*
 bool getParameters(int argc, char* argv[], int& N, int& v, int& rep)
 {
     if (argc < 2) {
@@ -66,6 +73,7 @@ bool getParameters(int argc, char* argv[], int& N, int& v, int& rep)
     }
     return true;
 }
+*/
 
 void printTimings(std::vector<double> &timings, int rank, int N, int v, int PX, int PY)
 {
@@ -97,22 +105,58 @@ void printTimings(std::vector<double> &timings, int rank, int N, int v, int PX, 
  */
 int main(int argc, char* argv[])
 {
+    // **************************************
+    //   setup command-line parser
+    // **************************************
+    cxxopts::Options options("SCALAPACK CHOLESKY MINIAPP", 
+        "A miniapp computing: Cholesky factorization of a random matrix.");
+
+    options.add_options()
+        ("N,dim",
+            "matrix dimension", 
+            cxxopts::value<int>()->default_value("10"))
+        ("b,block",
+            "block dimension.",
+            cxxopts::value<int>()->default_value("2"))
+        ("p,p_grid",
+            "processor 2D-decomposition.",
+             cxxopts::value<std::vector<int>>()->default_value("-1,-1"))
+        ("r,n_rep",
+            "number of repetitions.",
+            cxxopts::value<int>()->default_value("2"))
+        ("h,help", "Print usage.")
+    ;
+    const char** const_argv = (const char**) argv;
+    auto result = options.parse(argc, const_argv);
+    if (result.count("help")) {
+        std::cout << options.help() << std::endl;
+        return 0;
+    }
     // initialize MPI environment first
     MPI_Init(&argc, &argv);
 
-    // get input parameters from the command line
-    int N, v, rep;
-    if (!getParameters(argc, argv, N, v, rep)) {
-        // wrong usage, terminate
-        MPI_Finalize();
-        return -1;
-    }
+    //******************************
+    // INPUT PARAMETERS
+    //******************************
+    auto N = result["dim"].as<int>();  // global matrix size
+    auto v = result["block"].as<int>(); // block size
+    auto rep = result["n_rep"].as<int>(); // number of repetitions
+    auto p_grid = result["p_grid"].as<std::vector<int>>(); // processor grid
 
     // obtain the processor grid (we only use square grids)
     int rank, P, PX, PY;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &P);
-    std::tie(PX, PY) = getProcessorGrid(P);
+
+    PX = p_grid[0];
+    PY = p_grid[1];
+
+    // if not set, PX and PY will be -1 (see cxxopts default values above)
+    if (PX < 0 || PY < 0) {
+        // compute a reasonable decomposition
+        std::tie(PX, PY) = getProcessorGrid(P);
+    }
+
     int usedP = PX * PY;
     if (rank == 0 && usedP < P) {
         std::cout << "Warning: only " << usedP << "/" << P << "processors ares used" << std::endl;
@@ -125,8 +169,8 @@ int main(int argc, char* argv[])
 
         // create a blacs context
         int ctx = Csys2blacs_handle(world);
-        const char *order = "Row";
-        Cblacs_gridinit(&ctx, order, PX, PY);
+        char order = 'R';
+        Cblacs_gridinit(&ctx, &order, PX, PY);
 
         // create the matrix descriptors
         int rsrc = 0; int csrc = 0; int info;
@@ -147,17 +191,27 @@ int main(int argc, char* argv[])
 
         // initialize matrix data with random values in interval [0, 1]
         int bufferSize = scalapack::local_buffer_size(desca);
-        std::vector<double> matrix(bufferSize);
+        std::vector<double> mat(bufferSize);
         int seed = 1005 + rank;
         std::mt19937 gen(seed);
         std::uniform_real_distribution<double> dist(0.0, 1.0);
-        for (auto &entry : matrix) {
-            entry = dist(gen);
-        }
 
         // we perform Cholesky on the full, lower triangular matrix
         int ia = 1; int ja = 1;
         char uplo = 'L';
+
+        // matrix descriptor for COSTA
+        auto matrix = costa::block_cyclic_layout<double>(
+            N, N,
+            v, v,
+            ia, ja,
+            N, N,
+            PX, PY,
+            order,
+            rsrc, csrc,
+            mat.data(),
+            lld,
+            rank);
 
         // TODO: strengthen the diagonal. Cholesky factorization requires s.p.d.
         // input matrices. however, our input matrix need not be symmetric because
@@ -170,20 +224,31 @@ int main(int argc, char* argv[])
         // to e.g. 2N^2 (where N indicates the matrix dimension) will ensure this
         // property
 
+        // function f(i, j) := value of element (i, j) in the global matrix
+        // an arbitrary function
+        auto f = [&gen, &dist, N](int i, int j) -> double {
+            auto value = dist(gen);
+            if (i == j) value += 2*N*N;
+            return value;
+        };
+
         // create a vector for timings
         std::vector<double> timings;
         timings.reserve(rep);
 
         // perform the cholesky factorization rep times and time it
         for (size_t i = 0; i < rep; ++i) {
+            // reinitialize the matrix before each repetitions
+            matrix.initialize(f);
+
             // measure execution time in the current iteration
             MPI_Barrier(world);
             auto start = std::chrono::high_resolution_clock::now();
-            pdpotrf_(&uplo, &N, matrix.data(), &ia, &ja, desca, &info);
+            pdpotrf_(&uplo, &N, mat.data(), &ia, &ja, desca, &info);
             MPI_Barrier(world);
             auto end = std::chrono::high_resolution_clock::now();
-            double timeInSec = std::chrono::duration_cast<std::chrono::nanoseconds>(end-start).count();
-            timeInSec *= 1e9;
+            double timeInMS = std::chrono::duration_cast<std::chrono::nanoseconds>(end-start).count();
+            timeInMS *= 1e-6;
 
             // check for errors that occured, and if so terminate
             if (rank == 0 && info != 0) {
@@ -195,7 +260,7 @@ int main(int argc, char* argv[])
                 MPI_Finalize();
                 return -1;
             }
-            timings.push_back(timeInSec);
+            timings.push_back(timeInMS);
         }
 
         // output the timing values
