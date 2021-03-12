@@ -1,4 +1,4 @@
-# LU Factorization with (MKL) ScaLAPACK
+# LU & Cholesky Factorizations with (MKL) ScaLAPACK
 
 ## Building and Installing
 
@@ -15,7 +15,7 @@ CC=gcc-9 CXX=g++-9 cmake .. # or whatever version of gcc compiler you have
 make -j
 mpiexec -np <num MPI ranks> ./lu -N <global matrix size> -b <block size> --p_grid=<prow>,<pcol> -r <num of repetitions>
 
-# Example:
+# Example for LU:
 mpirun -n 4 ./lu -N 1200 -b 128 --p_grid=2,2 -r 2
 Warning: using only 4 out of 5 processes.
 ==========================
@@ -28,8 +28,12 @@ Number of repetitions: 2
 --------------------------
 TIMINGS [ms] = 353 186
 ==========================
+
+# Example for Cholesky (output is structured in the same way):
+mpirun -n 4 ./cholesky -N 1200 -b 128 --p_grid=2,2 -r 2
 ```
 
 ## Authors:
 - Marko Kabic (marko.kabic@cscs.ch)
 - Tal Ben Nun (talbn@inf.ethz.ch)
+- Jens Eirik Saethre (saethrej@ethz.ch)
