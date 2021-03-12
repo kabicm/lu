@@ -35,64 +35,30 @@ std::pair<int, int> getProcessorGrid(int P)
 }
 
 /**
- * @brief parses arguments from the command line
- * 
- * @param argc the number of arguments on the command line
- * @param argv the values of the arguments
+ * @brief prints the timings to the desired stream
+ * @param out the desired stream (e.g. std::cout or a file)
+ * @param timings the vector containing the timings
  * @param N the matrix dimension
- * @param v the tile size (defaults to 128 if not provided)
- * @param rep the number of repetitions (defaults to 2 if not provided)
- * 
- * @returns true if the program was called correctly
+ * @param v the tile size
+ * @param PX the number of processors in x-direction on the grid
+ * @param PY the number of processors in y-direction on the grid
  */
-/*
-bool getParameters(int argc, char* argv[], int& N, int& v, int& rep)
+void printTimings(std::vector<double> &timings, std::ostream &out, int N, int v, int PX, int PY)
 {
-    if (argc < 2) {
-        std::cout << "Not enough arguments!" << std::endl;
-        std::cout << "Call it like: " << std::endl;
-        std::cout << "mpirun -np 4 ./cholesky <global matrix size> <tile size> <n_repetitions>" << std::endl;
-        return false;
+    out << "==========================" << std::endl;
+    out << "    PROBLEM PARAMETERS:" << std::endl;
+    out << "==========================" << std::endl;
+    out << "Matrix size: " << N << std::endl;
+    out << "Block size: " << v << std::endl;
+    out << "Processor grid: " << PX << " x " << PY << std::endl;
+    out << "Number of repetitions: " << timings.size() << std::endl;
+    out << "--------------------------" << std::endl;
+    out << "TIMINGS [ms] = ";
+    for (auto &time : timings) {
+        out << time << " ";
     }
-
-    // global matrix size
-    N = std::atoi(argv[1]);
-    // block size (default = 128)
-    v = 128;
-    if (argc >= 3) {
-        v = std::atoi(argv[2]);
-    }
-    // number of repetitions
-    rep = 2;
-    if (argc >= 4) {
-        rep = std::atoi(argv[3]);
-    }
-
-    if (argc > 4) {
-        std::cout << "Too many parameters given, ignoring some of them." << std::endl;
-    }
-    return true;
-}
-*/
-
-void printTimings(std::vector<double> &timings, int rank, int N, int v, int PX, int PY)
-{
-    if (rank == 0) {
-            std::cout << "==========================" << std::endl;
-            std::cout << "    PROBLEM PARAMETERS:" << std::endl;
-            std::cout << "==========================" << std::endl;
-            std::cout << "Matrix size: " << N << std::endl;
-            std::cout << "Block size: " << v << std::endl;
-            std::cout << "Processor grid: " << PX << " x " << PY << std::endl;
-            std::cout << "Number of repetitions: " << timings.size() << std::endl;
-            std::cout << "--------------------------" << std::endl;
-            std::cout << "TIMINGS [ms] = ";
-            for (auto &time : timings) {
-                std::cout << time << " ";
-            }
-            std::cout << std::endl;
-            std::cout << "==========================" << std::endl;
-        }
+    out << std::endl;
+    out << "==========================" << std::endl;
 }
 
 /**
@@ -211,24 +177,13 @@ int main(int argc, char* argv[])
             rsrc, csrc,
             mat.data(),
             lld,
-            rank);
+            rank
+        );
 
-        // TODO: strengthen the diagonal. Cholesky factorization requires s.p.d.
-        // input matrices. however, our input matrix need not be symmetric because
-        // ScaLAPACK implicitly assumes this, and thus never touches the upper
-        // triangular part. Assuming symmetry, we can make the matrix s.p.d. by
-        // strengthening the diagonal such that 
-        //              \sum_{j=1, j!=i} A_{ij} < A_{ii} 
-        // holds for all all i (i.e. for all diagonal elements). Since all of our
-        // matrices entries are elements in [0, 1], setting elements on the diagonal
-        // to e.g. 2N^2 (where N indicates the matrix dimension) will ensure this
-        // property
-
-        // function f(i, j) := value of element (i, j) in the global matrix
-        // an arbitrary function
+        // define lambda function to strengthen the diagonal
         auto f = [&gen, &dist, N](int i, int j) -> double {
             auto value = dist(gen);
-            if (i == j) value += 2*N*N;
+            if (i == j) value += 2.0*N*N;
             return value;
         };
 
@@ -263,8 +218,15 @@ int main(int argc, char* argv[])
             timings.push_back(timeInMS);
         }
 
-        // output the timing values
-        printTimings(timings, rank, N, v, PX, PY);
+        // let rank 0 output the timing values
+        if (rank == 0) {
+            printTimings(timings, std::cout, N, v, PX, PY);
+
+            // if you want to print the results to a file, uncomment the following:
+            //std::ofstream output("your-filename.txt", std::ios::out);
+            //printTimings(timings, output, N, nb, prows, pcols);
+            //output.close();
+        }
 
         // finalize everything (except for MPI)
         Cblacs_gridexit(ctx);
