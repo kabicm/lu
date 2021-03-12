@@ -17,57 +17,51 @@
 
 #include "utils.hpp"
 
-// decomposes P into a 2D grid
-std::pair<int, int> processor_grid(int P) {
-    int sq_root = (int) std::floor(sqrt(P));
-    return {sq_root, sq_root};
-}
+// costa
+#include <costa/layout.hpp>
 
-bool get_parameters(int argc, char** argv, int& N, int& nb, int& n_rep) {
-    if (argc < 2) {
-        std::cout << "Not enough arguments!" << std::endl;
-        std::cout << "Call it like: " << std::endl;
-        std::cout << "mpirun -np 4 ./lu <global matrix size> <block size> <n_repetitions>" << std::endl;
-        return false;
-    }
-
-    // global matrix size
-    N = std::atoi(argv[1]);
-    // block size (default = 128)
-    nb = 128;
-    if (argc >= 3) {
-        nb = std::atoi(argv[2]);
-    }
-    // number of repetitions
-    n_rep = 2;
-    if (argc >= 4) {
-        n_rep = std::atoi(argv[3]);
-    }
-
-    if (argc > 4) {
-        std::cout << "Too many parameters given, ignoring some of them." << std::endl;
-    }
-
-    return true;
-}
+// cxxopts
+#include <cxxopts.hpp>
 
 int main(int argc, char ** argv)
 {
+    // **************************************
+    //   setup command-line parser
+    // **************************************
+    cxxopts::Options options("SCALAPACK LU MINIAPP", 
+        "A miniapp computing: LU factorization of a random matrix.");
+
+    options.add_options()
+        ("N,dim",
+            "matrix dimension", 
+            cxxopts::value<int>()->default_value("10"))
+        ("b,block",
+            "block dimension.",
+            cxxopts::value<int>()->default_value("2"))
+        ("p,p_grid",
+            "processor 2D-decomposition.",
+             cxxopts::value<std::vector<int>>()->default_value("1,1"))
+        ("r,n_rep",
+            "number of repetitions.",
+            cxxopts::value<int>()->default_value("2"))
+        ("h,help", "Print usage.")
+    ;
+    const char** const_argv = (const char**) argv;
+    auto result = options.parse(argc, const_argv);
+    if (result.count("help")) {
+        std::cout << options.help() << std::endl;
+        return 0;
+    }
+
     MPI_Init(&argc, &argv);
 
     //******************************
     // INPUT PARAMETERS
     //******************************
-    int N;  // global matrix size
-    int nb; // block size
-    int n_rep; // number of repetitions
-
-    // get the input parameters
-    bool status = get_parameters(argc, argv, N, nb, n_rep);
-    if (status != true) {
-        MPI_Finalize();
-        return 0;
-    }
+    auto N = result["dim"].as<int>();  // global matrix size
+    auto nb = result["block"].as<int>(); // block size
+    auto n_rep = result["n_rep"].as<int>(); // number of repetitions
+    auto p_grid = result["p_grid"].as<std::vector<int>>(); // processor grid
 
     //******************************
     // COMMUNICATOR
@@ -80,9 +74,9 @@ int main(int argc, char ** argv)
     //******************************
     // GRID DECOMPOSITION
     //******************************
-    int prows, pcols;
-    // get a 2D processor decomposition
-    std::tie(prows, pcols) = processor_grid(P);
+    int prows = p_grid[0];
+    int pcols = p_grid[1];
+
     // if P is not a perfect square then P_used != P 
     // (in fact, it always holds: P_used <= P)
     int P_used = prows * pcols;
@@ -102,9 +96,9 @@ int main(int argc, char ** argv)
         // get a grid descriptor corresponding to this communicator
         int ctx = Csys2blacs_handle(comm);
         // we use by default row-major ordering of processors
-        std::string order = "Row";
+        char order = 'R';
         // initialize a blacs context from the given grid descriptor (ctx)
-        Cblacs_gridinit(&ctx, order.c_str(), prows, pcols);
+        Cblacs_gridinit(&ctx, &order, prows, pcols);
 
         //******************************
         // MATRIX DESCRIPTORS
@@ -143,14 +137,30 @@ int main(int argc, char ** argv)
         int seed = 1234 + rank;
         std::mt19937 gen (seed);
         std::uniform_real_distribution<double> dist(0.0, 1.0);
-        // set all elements to some random value
-        for (auto& el : a) {
-            el = dist(gen);
-        }
 
         // we want LU of the full matrix, and not of a submatrix
         int ia = 1; 
         int ja = 1;
+
+        auto matrix = costa::block_cyclic_layout<double>(
+            N, N,
+            nb, nb,
+            ia, ja,
+            N, N,
+            prows, pcols,
+            order,
+            rsrc, csrc,
+            a.data(),
+            lld,
+            rank);
+
+        // function f(i, j) := value of element (i, j) in the global matrix
+        // an arbitrary function
+        auto f = [&gen, &dist, N](int i, int j) -> double {
+            auto value = dist(gen);
+            if (i == j) value += 2*N*N;
+            return value;
+        };
 
         //******************************
         // PIVOTING
@@ -169,6 +179,10 @@ int main(int argc, char ** argv)
         // LU FACTORIZATION + TIMING
         //******************************
         for (int i = 0; i < n_rep; ++i) {
+            // reinitialize the matrix before each repetitions
+            matrix.initialize(f);
+
+            // start the timing
             MPI_Barrier(comm);
             auto start = std::chrono::high_resolution_clock::now();
 
