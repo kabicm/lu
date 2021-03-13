@@ -141,7 +141,7 @@ int main(int argc, char* argv[])
         // create the matrix descriptors
         int rsrc = 0; int csrc = 0; int info;
         int desca[9];
-        int lld = scalapack::min_leading_dimension(N, v, PY); // local leading dim
+        int lld = scalapack::max_leading_dimension(N, v, PY); // local leading dim
         descinit_(desca, &N, &N, &v, &v, &rsrc, &csrc, &ctx, &lld, &info);
 
         // let root rank check for errors during creation, and handle them
@@ -202,8 +202,7 @@ int main(int argc, char* argv[])
             pdpotrf_(&uplo, &N, mat.data(), &ia, &ja, desca, &info);
             MPI_Barrier(world);
             auto end = std::chrono::high_resolution_clock::now();
-            double timeInMS = std::chrono::duration_cast<std::chrono::nanoseconds>(end-start).count();
-            timeInMS *= 1e-6;
+            auto timeInMS = std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
 
             // check for errors that occured, and if so terminate
             if (rank == 0 && info != 0) {
