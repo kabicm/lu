@@ -23,7 +23,7 @@ def createBashPreface(P, algorithm):
 #SBATCH --job-name=scalapack-%s-p%d \n\
 #SBATCH --time=02:00:00 \n\
 #SBATCH --nodes=%d \n\
-#SBATCH --output=data/benchmarks/%s-p%d.txt \n\
+#SBATCH --output=benchmarks/%s-p%d.txt \n\
 #SBATCH --constraint=mc \n\
 #SBATCH --account=g34 \n\n\
 export OMP_NUM_THREADS=18 \n\n' % (algorithm, P, numNodes, algorithm, P)
@@ -83,7 +83,7 @@ def generateLaunchFile(N, V, grids, reps, algorithm):
             for rectangles in grids[grid]:
                 for n in N:
                     for v in V:
-                        cmd = 'srun -N %d -n %d ./build/%s --N=%d --b=%d --p_grid=%s --r=%d \n' % (numNodes, grid, algorithm, n, v, rectangles, reps)
+                        cmd = 'srun -N %d -n %d ./build/%s -N %d -b %d --p_grid=%s -r %d \n' % (numNodes, grid, algorithm, n, v, rectangles, reps)
                         f.write(cmd)
     return
 

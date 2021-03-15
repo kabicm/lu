@@ -35,7 +35,7 @@ mpirun -n 4 ./cholesky -N 1200 -b 128 --p_grid=2,2 -r 2
 
 ## Generating and Running the Scripts on Daint
 Enter the params you want to work with into `scripts/params.ini`. Now, move to the source folder and generate the _.sh_ files by running `python3 scripts/generate_launch_files.py`. If you only want to generate scripts for lu, you can pass the argument `algo lu`. For only cholesky on the other hand, pass `algo chol`, If no argument is given, both are generated. After having generated the files, run `python3 scripts/launch_on_daint.py`. It will generate allocate nodes for each processor size, at the moment using the heuristic that we have n nodes with 2n ranks. If you launch very large jobs, perhaps you have to change the runtime in  `python3 scripts/generate_launch_files.py` or in the bash scripts directly (it defaults to 2 hours at the moment).
-Each `.sh` file contains all jobs for one specific processor size. The outputs of jobs are written to the data folder (which you might have to create first).
+Each `.sh` file contains all jobs for one specific processor size. The outputs of jobs are written to the ./benchmarks folder (which you might have to create first).
 
 ## Authors:
 - Marko Kabic (marko.kabic@cscs.ch)
