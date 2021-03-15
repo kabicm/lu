@@ -83,7 +83,7 @@ def generateLaunchFile(N, V, grids, reps, algorithm):
             for rectangles in grids[grid]:
                 for n in N:
                     for v in V:
-                        cmd = 'srun -N %d -n %d ./build/%s --dim=%d --tile=%d --grid=%s --run=%d \n' % (numNodes, grid, algorithm, n, v, rectangles, reps)
+                        cmd = 'srun -N %d -n %d ./build/%s --N=%d --b=%d --p_grid=%s --r=%d \n' % (numNodes, grid, algorithm, n, v, rectangles, reps)
                         f.write(cmd)
     return
 
