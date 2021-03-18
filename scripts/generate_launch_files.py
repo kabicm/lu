@@ -11,6 +11,7 @@ from numpy import genfromtxt
 import configparser
 import math
 import argparse
+from datetime import datetime
 
 path_to_launch = './launch/'
 path_to_params = './scripts/params.ini'
@@ -19,15 +20,16 @@ lu_section = 'lu'
 output_path = 'benchmarks'
 
 def createBashPreface(P, algorithm):
+    time = datetime.now().time()
     numNodes = math.ceil(P/2)
     return '#!/bin/bash -l \n\
 #SBATCH --job-name=mkl-%s-p%d \n\
 #SBATCH --time=02:00:00 \n\
 #SBATCH --nodes=%d \n\
-#SBATCH --output=%s/mkl-%s-p%d.txt \n\
+#SBATCH --output=%s/mkl-%s-p%d-%s.txt \n\
 #SBATCH --constraint=mc \n\
 #SBATCH --account=g34 \n\n\
-export OMP_NUM_THREADS=18 \n\n' % (algorithm, P, numNodes, output_path, algorithm, P)
+export OMP_NUM_THREADS=18 \n\n' % (algorithm, P, numNodes, output_path, algorithm, P, time)
 
 # parse params.ini
 def readConfig(section):
