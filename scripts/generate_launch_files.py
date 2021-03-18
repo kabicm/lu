@@ -16,17 +16,18 @@ path_to_launch = './launch/'
 path_to_params = './scripts/params.ini'
 cholesky_section = 'cholesky'
 lu_section = 'lu'
+output_path = 'benchmarks'
 
 def createBashPreface(P, algorithm):
     numNodes = math.ceil(P/2)
     return '#!/bin/bash -l \n\
-#SBATCH --job-name=scalapack-%s-p%d \n\
+#SBATCH --job-name=mkl-%s-p%d \n\
 #SBATCH --time=02:00:00 \n\
 #SBATCH --nodes=%d \n\
-#SBATCH --output=benchmarks/%s-p%d.txt \n\
+#SBATCH --output=%s/mkl-%s-p%d.txt \n\
 #SBATCH --constraint=mc \n\
 #SBATCH --account=g34 \n\n\
-export OMP_NUM_THREADS=18 \n\n' % (algorithm, P, numNodes, algorithm, P)
+export OMP_NUM_THREADS=18 \n\n' % (algorithm, P, numNodes, output_path, algorithm, P)
 
 # parse params.ini
 def readConfig(section):
@@ -72,7 +73,6 @@ def readConfig(section):
     return N, v, grids, reps
     
 
-
 def generateLaunchFile(N, V, grids, reps, algorithm):
     for grid in grids:
         filename = path_to_launch + 'launch_%s_%d.sh' %(algorithm, grid)
@@ -99,7 +99,17 @@ if __name__ == "__main__":
     After creation, use the launch on daint script to launch all')
     parser.add_argument('--algo', metavar='algo', type=str, required=False,
                     help='lu for LU, chol for Cholesky, both for both',  default='both')
+    parser.add_argument('--dir', metavar='dir', type=str, required=False,
+                    help='path to the output file', default='benchmarks')
     args = vars(parser.parse_args())
+
+    # parse the output directory path, and make the directories
+    if args['dir'] is not None:
+        output_path = args['dir']
+        if output_path[-1] == '/':
+            output_path = output_path[:-1]
+        os.makedirs(output_path, exist_ok=True)
+
     # grids is a dict since for each processor size, we have to create a new launch file
     if args['algo'] == 'both':
         try:
@@ -135,4 +145,5 @@ if __name__ == "__main__":
 
     
     else:
-        print("Please either use --algo lu, --algo chol or no command line argument")
+        print("Please either use --algo=lu, --algo=chol for the algorithm"
+              + " and specify the output directory with --dir=<path/to/output>")
