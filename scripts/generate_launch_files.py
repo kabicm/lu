@@ -63,7 +63,7 @@ def readConfig(section):
         grids[P] = grid
 
     try:
-        reps = ast.literal_eval(config[cholesky_section]['r'])
+        reps = ast.literal_eval(config[section]['r'])
     except:
         print("No number of repetitions found, using default 5. If you do not want this, add r= and the number of reps")
         reps = 5
