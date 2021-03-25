@@ -29,8 +29,17 @@ Number of repetitions: 2
 TIMINGS [ms] = 353 186
 ==========================
 
-# Example for Cholesky (output is structured in the same way):
+# Example for Cholesky:
 mpirun -n 4 ./cholesky -N 1200 -b 128 --p_grid=2,2 -r 2
+==========================
+    PROBLEM PARAMETERS:
+==========================
+Matrix size: 1200
+Block size: 128
+Processor grid: 2 x 2
+--------------------------
+ 86ms 6.69767GFlop/s 1200 (128, 128) (2, 2)
+ 11ms 52.3636GFlop/s 1200 (128, 128) (2, 2)
 ```
 
 ## Generating and Running the Scripts on Daint
@@ -44,3 +53,4 @@ Each `.sh` file contains all jobs for one specific processor size.
 - Tal Ben Nun (talbn@inf.ethz.ch)
 - Jens Eirik Saethre (saethrej@ethz.ch)
 - Andre Gaillard (andrega@ethz.ch)
+- Raffaele Solcà (rasolca@cscs.ch)
