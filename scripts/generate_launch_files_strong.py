@@ -14,7 +14,7 @@ import argparse
 from datetime import datetime
 
 path_to_launch = './launch/'
-path_to_params = './scripts/params.ini'
+path_to_params = './scripts/params_strong.ini'
 cholesky_section = 'cholesky'
 lu_section = 'lu'
 output_path = 'benchmarks'
@@ -24,11 +24,11 @@ def createBashPreface(P, algorithm):
     numNodes = math.ceil(P/2)
     return '#!/bin/bash -l \n\
 #SBATCH --job-name=mkl-%s-p%d \n\
-#SBATCH --time=02:00:00 \n\
+#SBATCH --time=00:40:00 \n\
 #SBATCH --nodes=%d \n\
-#SBATCH --output=%s/mkl-%s-p%d-%s.txt \n\
+#SBATCH --output=%s/mkl-strong-%s-p%d-%s.txt \n\
 #SBATCH --constraint=mc \n\
-#SBATCH --account=g34 \n\n\
+#SBATCH --account=csstaff \n\n\
 export OMP_NUM_THREADS=18 \n\n' % (algorithm, P, numNodes, output_path, algorithm, P, time)
 
 # parse params.ini
@@ -77,7 +77,7 @@ def readConfig(section):
 
 def generateLaunchFile(N, V, grids, reps, algorithm):
     for grid in grids:
-        filename = path_to_launch + 'launch_%s_%d.sh' %(algorithm, grid)
+        filename = path_to_launch + 'launch_strong_%s_%d.sh' %(algorithm, grid)
         with open(filename, 'w') as f:
             numNodes = math.ceil(grid/2)
             f.write(createBashPreface(grid, algorithm))
@@ -85,8 +85,9 @@ def generateLaunchFile(N, V, grids, reps, algorithm):
             for rectangles in grids[grid]:
                 for n in N:
                     for v in V:
+                        pre = 'export SCOREP_EXPERIMENT_DIRECTORY=benchmarks/scorep/strong_%s_%d_%d_%d_%s \n' %(algorithm, n, grid, v, rectangles) 
                         cmd = 'srun -N %d -n %d ./build/%s -N %d -b %d --p_grid=%s -r %d \n' % (numNodes, grid, algorithm, n, v, rectangles, reps)
-                        f.write(cmd)
+                        f.write(pre + cmd)
     return
 
 # We use the convention that we ALWAYS use n nodes and 2n ranks
