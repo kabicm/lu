@@ -35,15 +35,14 @@ std::pair<int, int> getProcessorGrid(int P)
 }
 
 /**
- * @brief prints the timings to the desired stream
+ * @brief prints the parameters to the given stream
  * @param out the desired stream (e.g. std::cout or a file)
- * @param timings the vector containing the timings
  * @param N the matrix dimension
  * @param v the tile size
  * @param PX the number of processors in x-direction on the grid
  * @param PY the number of processors in y-direction on the grid
  */
-void printTimings(std::vector<double> &timings, std::ostream &out, int N, int v, int PX, int PY)
+void printTimingPreamble(std::ostream &out, int N, int v, int PX, int PY)
 {
     out << "==========================" << std::endl;
     out << "    PROBLEM PARAMETERS:" << std::endl;
@@ -51,14 +50,29 @@ void printTimings(std::vector<double> &timings, std::ostream &out, int N, int v,
     out << "Matrix size: " << N << std::endl;
     out << "Block size: " << v << std::endl;
     out << "Processor grid: " << PX << " x " << PY << std::endl;
-    out << "Number of repetitions: " << timings.size() << std::endl;
     out << "--------------------------" << std::endl;
-    out << "TIMINGS [ms] = ";
-    for (auto &time : timings) {
-        out << time << " ";
-    }
-    out << std::endl;
-    out << "==========================" << std::endl;
+}
+
+/**
+ * @brief prints the timings to the desired stream
+ * @param out the desired stream (e.g. std::cout or a file)
+ * @param time elapsed time in milliseconds
+ * @param N the matrix dimension
+ * @param v the tile size
+ * @param PX the number of processors in x-direction on the grid
+ * @param PY the number of processors in y-direction on the grid
+ */
+void printTiming(double time, std::ostream &out, int N, int v, int PX, int PY)
+{
+    // For complex cases the prefactor should be 4/3!
+    double flop = 1. / 3. * N * N * N;
+
+    // Note: time is in milliseconds
+    auto gflops = flop / time / 1e6;
+    out << " " << time << "ms"
+        << " " << gflops << "GFlop/s"
+        << " " << N << " (" << v << ", " << v << ") (" << PX << ", " << PY << ")"
+        << std::endl;
 }
 
 /**
@@ -187,9 +201,13 @@ int main(int argc, char* argv[])
             return value;
         };
 
-        // create a vector for timings
-        std::vector<double> timings;
-        timings.reserve(rep);
+        if (rank == 0) {
+          printTimingPreamble(std::cout, N, v, PX, PY);
+
+          // if you want to print the results to a file, uncomment the following: (1/3)
+          //std::ofstream output("your-filename.txt", std::ios::out);
+          //printTimingPreamble(output, N, v, PX, PY);
+        }
 
         // perform the cholesky factorization rep times and time it
         for (size_t i = 0; i < rep; ++i) {
@@ -206,7 +224,7 @@ int main(int argc, char* argv[])
 
             // check for errors that occured, and if so terminate
             if (rank == 0 && info != 0) {
-                std::cout << "Error in dptorf, value of info: " << -info << std::endl;
+                std::cout << "Error in dpotrf, value of info: " << -info << std::endl;
 
                 Cblacs_gridexit(ctx);
                 Cblacs_exit(1);
@@ -214,16 +232,17 @@ int main(int argc, char* argv[])
                 MPI_Finalize();
                 return -1;
             }
-            timings.push_back(timeInMS);
+            // let rank 0 output the timing values
+            if (rank == 0) {
+              printTiming(timeInMS, std::cout, N, v, PX, PY);
+
+              // if you want to print the results to a file, uncomment the following: (2/3)
+              //printTiming(timeInMS, output, N, v, PX, PY);
+            }
         }
 
-        // let rank 0 output the timing values
         if (rank == 0) {
-            printTimings(timings, std::cout, N, v, PX, PY);
-
-            // if you want to print the results to a file, uncomment the following:
-            //std::ofstream output("your-filename.txt", std::ios::out);
-            //printTimings(timings, output, N, nb, prows, pcols);
+            // if you want to print the results to a file, uncomment the following: (3/3)
             //output.close();
         }
 
