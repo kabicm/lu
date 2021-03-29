@@ -10,9 +10,21 @@ include(cmake/adjust_mpiexec_flags.cmake)
 find_package(MPI REQUIRED)
 adjust_mpiexec_flags()
 
-# MKL BLAS
-find_package(MKL REQUIRED COMPONENTS BLAS_32BIT_OMP SCALAPACK_32BIT_OMP)
-set(SCALAPACK_TARGET "mkl::scalapack_${MPI_TYPE}_intel_32bit_omp_dyn")
+# SCALAPACK providers
+#
+set(SCALAPACK_TARGET "")
+if (${SCALAPACK_BACKEND} STREQUAL "MKL")
+    find_package(MKL REQUIRED)
+    set(SCALAPACK_TARGET "mkl::scalapack_${MPI_TYPE}_intel_32bit_omp_dyn")
+elseif (${SCALAPACK_BACKEND} STREQUAL "CRAY_LIBSCI")
+    find_package(CRAY_LIBSCI REQUIRED)
+    set(SCALAPACK_TARGET "${CRAY_LIBSCI_LIBRARIES}")
+elseif (${SCALAPACK_BACKEND} STREQUAL "CUSTOM")
+    find_package(SCALAPACK REQUIRED)
+    set(SCALAPACK_TARGET "${SCALAPACK_LIBRARIES}")
+else  ()
+    message(STATUS "Building with no SCALAPACK interface support.")
+endif ()
 
 add_subdirectory(libs/costa)
 add_subdirectory(libs/cxxopts)
