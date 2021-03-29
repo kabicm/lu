@@ -1,4 +1,4 @@
-# LU & Cholesky Factorizations with (MKL) ScaLAPACK
+# LU & Cholesky Factorizations with ScaLAPACK
 
 ## Building and Installing
 
