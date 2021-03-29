@@ -2,8 +2,7 @@
 module load daint-mc
 module swap PrgEnv-cray PrgEnv-gnu
 module load CMake
-module unload cray-libsci
-module load intel # defines $MKLROOT
+module load cray-libsci
 
 # Setup the compiler
 #

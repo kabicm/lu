@@ -63,6 +63,13 @@ extern "C" {
     MPI_Comm Cblacs2sys_handle(int ictxt);
     int Csys2blacs_handle(MPI_Comm mpi_comm);
     void Cfree_blacs_system_handle(int i_sys_ctxt);
+
+    void descinit_( int* desc, int* m, int* n, int* mb, int* nb,
+                   int* irsrc, int* icsrc, int* ictxt, int* lld, int* info );
+    void pdgetrf_( int* m, int* n, double* a, int* ia, int* ja, int* desca,
+                   int* ipiv, int* info );
+
+    void pdpotrf_(char* uplo, int* n, double* mat, int* ia, int* ja, int* desca, int* info);
 }
 
 namespace scalapack {

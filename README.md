@@ -11,7 +11,8 @@ To build and run, do the following:
 
 ```bash
 mkdir build && cd build
-CC=gcc-9 CXX=g++-9 cmake .. # or whatever version of gcc compiler you have
+CC=gcc-9 CXX=g++-9 cmake -DSCALAPACK_BACKEND=<scalapack-library> .. # or whatever version of gcc compiler you have
+# <scalapack-library can be: MKL, CRAY_LIBSCI or CUSTOM>
 make -j
 mpiexec -np <num MPI ranks> ./lu -N <global matrix size> -b <block size> --p_grid=<prow>,<pcol> -r <num of repetitions>
 

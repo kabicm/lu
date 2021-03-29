@@ -11,11 +11,6 @@
 // mpi
 #include <mpi.h>
 
-// mkl
-#include <mkl.h>
-#include <mkl_scalapack.h>
-#include <mkl_cblas.h>
-
 #include "utils.hpp"
 
 // costa
