@@ -28,7 +28,7 @@
  * @param prows the number of processors in x-direction on the grid
  * @param pcols the number of processors in y-direction on the grid
  */
-void printTimings(std::vector<long> &timings, std::ostream &out, int N, int nb, int prows, int pcols)
+void printTimings(std::vector<long> &timings, std::ostream &out, int N, int nb, int prows, int pcols, std::string type)
 {
     out << "==========================" << std::endl;
     out << "    PROBLEM PARAMETERS:" << std::endl;
@@ -39,11 +39,20 @@ void printTimings(std::vector<long> &timings, std::ostream &out, int N, int nb, 
     out << "Number of repetitions: " << timings.size() << std::endl;
     out << "--------------------------" << std::endl;
     out << "TIMINGS [ms] = ";
+
     for (auto &time : timings) {
-        out << time << " ";
+        out << time << ", ";
     }
     out << std::endl;
     out << "==========================" << std::endl;
+
+    auto N_base = type=="weak" ? N/prows : N;
+    int P = prows * pcols;
+    std::string grid = std::to_string(prows) + "x" + std::to_string(pcols) + "x" + "1";
+
+    for (auto &time : timings) {
+        out << "_result_ lu,mkl," << N << "," << N_base << "," << P << "," << grid << ",time," << type << "," << time << "," << nb << std::endl;
+    }
 }
 
 /**
@@ -72,6 +81,9 @@ int main(int argc, char ** argv)
         ("p,p_grid",
             "processor 2D-decomposition.",
              cxxopts::value<std::vector<int>>()->default_value("-1,-1"))
+        ("t,type",
+            "weak or strong scaling",
+             cxxopts::value<std::string>()->default_value("other"))
         ("r,n_rep",
             "number of repetitions.",
             cxxopts::value<int>()->default_value("2"))
@@ -93,6 +105,7 @@ int main(int argc, char ** argv)
     auto nb = result["block"].as<int>(); // block size
     auto n_rep = result["n_rep"].as<int>(); // number of repetitions
     auto p_grid = result["p_grid"].as<std::vector<int>>(); // processor grid
+    auto type = result["type"].as<std::string>(); // type of experiment
 
     //******************************
     // COMMUNICATOR
@@ -206,7 +219,7 @@ int main(int argc, char ** argv)
         //******************************
         // LU FACTORIZATION + TIMING
         //******************************
-        for (int i = 0; i < n_rep; ++i) {
+        for (int i = 0; i < n_rep+1; ++i) {
             // reinitialize the matrix before each repetition
             matrix.initialize(f);
 
@@ -238,14 +251,15 @@ int main(int argc, char ** argv)
                 return -1;
             }
 
-            timings.push_back(time);
+            if (i > 0) 
+                timings.push_back(time);
         }
 
         //******************************
         // OUTPUT TIMINGS
         //******************************
         if (rank == 0) {
-            printTimings(timings, std::cout, N, nb, prows, pcols);
+            printTimings(timings, std::cout, N, nb, prows, pcols, type);
 
             // if you want to print the results to a file, uncomment the following:
             //std::ofstream output("your-filename.txt", std::ios::out);

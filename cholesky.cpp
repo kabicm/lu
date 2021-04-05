@@ -38,7 +38,7 @@ std::pair<int, int> getProcessorGrid(int P)
  * @param PX the number of processors in x-direction on the grid
  * @param PY the number of processors in y-direction on the grid
  */
-void printTimings(std::vector<double> &timings, std::ostream &out, int N, int v, int PX, int PY)
+void printTimings(std::vector<double> &timings, std::ostream &out, int N, int v, int PX, int PY, std::string type)
 {
     out << "==========================" << std::endl;
     out << "    PROBLEM PARAMETERS:" << std::endl;
@@ -54,6 +54,13 @@ void printTimings(std::vector<double> &timings, std::ostream &out, int N, int v,
     }
     out << std::endl;
     out << "==========================" << std::endl;
+    auto N_base = type=="weak" ? N/PX : N;
+    int P = PX * PY;
+    std::string grid = std::to_string(PX) + "x" + std::to_string(PY) + "x" + "1";
+
+    for (auto &time : timings) {
+        out << "_result_ cholesky,mkl," << N << "," << N_base << "," << P << "," << grid << ",time," << type << "," << time << "," << v << std::endl;
+    }
 }
 
 /**
@@ -82,6 +89,9 @@ int main(int argc, char* argv[])
         ("p,p_grid",
             "processor 2D-decomposition.",
              cxxopts::value<std::vector<int>>()->default_value("-1,-1"))
+        ("t,type",
+            "weak or strong scaling",
+             cxxopts::value<std::string>()->default_value("other"))
         ("r,n_rep",
             "number of repetitions.",
             cxxopts::value<int>()->default_value("2"))
@@ -103,6 +113,7 @@ int main(int argc, char* argv[])
     auto v = result["block"].as<int>(); // block size
     auto rep = result["n_rep"].as<int>(); // number of repetitions
     auto p_grid = result["p_grid"].as<std::vector<int>>(); // processor grid
+    auto type = result["type"].as<std::string>(); // type of experiment
 
     // obtain the processor grid (we only use square grids)
     int rank, P, PX, PY;
@@ -187,7 +198,7 @@ int main(int argc, char* argv[])
         timings.reserve(rep);
 
         // perform the cholesky factorization rep times and time it
-        for (size_t i = 0; i < rep; ++i) {
+        for (size_t i = 0; i < rep+1; ++i) {
             // reinitialize the matrix before each repetitions
             matrix.initialize(f);
 
@@ -209,12 +220,13 @@ int main(int argc, char* argv[])
                 MPI_Finalize();
                 return -1;
             }
-            timings.push_back(timeInMS);
+            if (i > 0)
+                timings.push_back(timeInMS);
         }
 
         // let rank 0 output the timing values
         if (rank == 0) {
-            printTimings(timings, std::cout, N, v, PX, PY);
+            printTimings(timings, std::cout, N, v, PX, PY, type);
 
             // if you want to print the results to a file, uncomment the following:
             //std::ofstream output("your-filename.txt", std::ios::out);
